@@ -1,0 +1,12 @@
+# Dados brutos extraidos (exigencia do desafio)
+brutos/
+
+# Arquivo de senhas e configuracoes secretas (nunca subir senhas!)
+.env
+
+# Arquivos temporarios e ambiente virtual do Python
+_pycache_/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
