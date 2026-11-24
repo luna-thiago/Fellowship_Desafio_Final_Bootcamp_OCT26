@@ -33,6 +33,13 @@
 - **Como validei:**
   - Executei `python etl/transformacao.py` sobre os dados brutos extraídos e conferi todos os contadores gerados (`pedidos_unicos=5000`, `repetidos_descartados=100`, `emails_nulos=81`, `estados_padronizados=151`, `datas_convertidas=1037`, `valores_convertidos=1255`, `divergentes=238`).
 
+### 4. Carga transacional idempotente e orquestração (`etl/carga.py` e `etl/main.py`) (Parte 3)
+
+- **Trecho / tarefa pedida:** Pedi uma proposta para carregar os dados limpos no PostgreSQL usando `psycopg`, respeitando a ordem das chaves estrangeiras, garantindo idempotência, usando consultas parametrizadas e lendo a senha de um arquivo `.env` local fora do Git.
+- **Justificativa da decisão:** Aceitei o uso de `TRUNCATE TABLE itens_pedido, pedidos, clientes, produtos;` dentro de uma única transação (`with conn:`) seguido de `cur.executemany` com marcadores `%s` na ordem `produtos` → `clientes` → `pedidos` → `itens_pedido`. Essa abordagem garante atomicidade (tudo ou nada) e protege a senha do banco ao mantê-la apenas no `.env` listado no `.gitignore`.
+- **Como validei:**
+  - Executei `python -m etl.main` duas vezes seguidas e confirmei que ambas as execuções produziram exatamente as mesmas contagens (`clientes=1000 produtos=12 pedidos=5000 itens=12455`) e reconciliação zerada (`soma_valor_itens_origem=311228.75 soma_valor_itens_destino=311228.75 diferenca=0.00`).
+
 ---
 
 ## Sugestões rejeitadas
