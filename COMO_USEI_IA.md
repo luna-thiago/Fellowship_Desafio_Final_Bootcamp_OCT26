@@ -60,10 +60,8 @@
 
 ## Falhas e retrabalho
 
-> *Meta obrigatória até a Parte 5: registrar no mínimo **1 falha encontrada em código proposto pela IA** e o retrabalho feito para corrigi-la.*
+### 1. Falha na conversão de valores monetários com separador de milhar em `converter_valor` (Parte 4)
 
-### 1. [A preencher ao identificar e corrigir uma falha em código proposto pela IA]
-
-- **O que a IA propôs:** *(trecho ou lógica original)*
-- **Qual foi a falha encontrada:** *(erro de execução, teste que falhou ou comportamento incorreto)*
-- **Retrabalho feito e validação:** *(como você corrigiu e provou que passou a funcionar)*
+- **O que a IA propôs:** Na função `converter_valor` de `etl/transformacao.py`, a IA propôs converter textos numéricos usando apenas `texto = str(valor).strip().replace(",", ".")`.
+- **Qual foi a falha encontrada:** Ao escrever o teste unitário para a armadilha A4 incluindo um valor no formato brasileiro com separador de milhar (`assert converter_valor("1.250,84") == Decimal("1250.84")`), a execução do `pytest -v` falhou (`1 failed, 6 passed in 0.63s`) com a exceção `decimal.InvalidOperation: [<class 'decimal.ConversionSyntax'>]`, pois a substituição simples gerava `"1.250.84"` (dois pontos decimais).
+- **Retrabalho feito e validação:** Ajustei a função `converter_valor` para remover os pontos separadores de milhar antes de trocar a vírgula decimal quando houver vírgula no texto (`if "," in texto: texto = texto.replace(".", "").replace(",", ".")`). Rodei `pytest -v` novamente e confirmei que todos os 7 testes passaram (`7 passed in 0.51s`).

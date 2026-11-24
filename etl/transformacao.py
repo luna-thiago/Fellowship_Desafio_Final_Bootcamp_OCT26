@@ -31,8 +31,10 @@ def converter_data(data_texto):
 
 
 def converter_valor(valor):
-    """Armadilha A4: converte numero ou texto com virgula (ex.: '125,84') para Decimal exato com 2 casas."""
-    texto = str(valor).strip().replace(",", ".")
+    """Armadilha A4: converte numero ou texto com virgula (ex.: '125,84' ou '1.250,84') para Decimal exato."""
+    texto = str(valor).strip()
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
     return Decimal(texto).quantize(DUAS_CASAS, rounding=ROUND_HALF_UP)
 
 
