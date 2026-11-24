@@ -1,70 +1,62 @@
 # Como usei IA neste desafio
 
-* **Ferramenta utilizada:** Gemini (assistente de IA).
-* **Papel adotado:** Conforme as regras da versão consolidada v3 do desafio — **par com escopo limitado** nas etapas de construção do ETL e testes (definindo o escopo de cada parte, executando, validando e explicando o código) e **tutora** nas consultas SQL.
-* **Segurança e privacidade:** Nenhuma senha do banco de dados PostgreSQL foi compartilhada com a IA ou versionada no repositório. Todos os dados manipulados são 100% sintéticos (gerados com a `seed 2026`).
+- **Ferramenta utilizada:** Gemini (assistente de IA).
+- **Papel adotado:** Uso conforme as regras do desafio — **par com escopo limitado** nas etapas do ETL (pedindo orientações e funções pontuais dentro de um escopo definido, executando e validando cada passo) e **tutora** nas consultas SQL.
+- **Boas práticas de segurança:** Nenhuma senha de banco de dados ou credencial sensível foi compartilhada com a IA. Apenas os insumos sintéticos do desafio e mensagens de erro genéricas de ambiente foram utilizados.
 
 ---
 
 ## Sugestões aceitas
 
-### 1. Consolidação da Errata v3 (18/11) e escolha do esquema de banco de dados (Fase 0)
+### 1. Preparação do ambiente, escolha do banco e diagnóstico de terminal (Parte 0)
 
-* **O que foi pedido à IA:** Ler o documento original (v1 de 03/11) e a errata consolidada (v3 de 18/11), resumir o que mudou e orientar a preparação inicial do ambiente em linguagem acessível.
-* **O que a IA propôs:** Seguir o **Caminho A (PostgreSQL instalado localmente)** e utilizar exclusivamente o arquivo `insumos/schema.sql` para criar as tabelas, ignorando o `schema_sqlite.sql` (voltado apenas para o Caminho C com SQLite e incompatível com PostgreSQL).
-* **Justificativa da decisão:** Aceita porque o Caminho A é o recomendado na errata v3 e o uso do arquivo SQL correto evita erros de sintaxe na criação das tabelas.
-* **Como foi validado:** Conferi manualmente os cabeçalhos dos arquivos `schema.sql` e `schema_sqlite.sql` e executei a criação do banco e das tabelas via CMD:
-  ```bash
-  psql -U postgres -c "CREATE DATABASE verdejar;"
-  psql -U postgres -d verdejar -f insumos/schema.sql
-  ```
-  Ambos os comandos finalizaram com sucesso no PostgreSQL local.
+- **Trecho / tarefa pedida:** Pedi um passo a passo sem termos técnicos soltos a partir da errata v3 (18/11), os comandos para criar o banco de dados `verdejar` no PostgreSQL, aplicar o esquema de tabelas, subir a API local e resolver os erros de comando não reconhecido (`psql` e `python`) no Windows.
+- **Justificativa da decisão:** Aceitei seguir o **Caminho A (PostgreSQL local)**, recomendado pela errata, aplicando exclusivamente o arquivo `insumos/schema.sql` (e descartando o `schema_sqlite.sql`, incompatível com PostgreSQL). Também segui as orientações de adicionar a pasta `bin` do PostgreSQL na variável de ambiente `PATH` e instalar o Python 3 para destravar o terminal.
+- **Como validei:**
+  - Após ajustar o `PATH`, executei `psql -U postgres -c "CREATE DATABASE verdejar;"` e `psql -U postgres -d verdejar -f insumos/schema.sql`, criando o banco e as tabelas sem erros.
+  - Após instalar o Python, iniciei a API com `python insumos/api_verdejar.py --dados insumos/dados` e testei com `curl "http://127.0.0.1:8000/saude"`, obtendo exatamente `{"status": "ok"}`.
+  - Registrei a estrutura inicial no branch `desafio-final-verdejar` com o primeiro commit.
 
-### 2. Diagnóstico e correção de ambiente no Windows (`psql` no PATH e instalação do Python) (Fase 0)
+### 2. Implementação da extração paginada e leitura do CSV (`etl/extracao.py`) (Parte 1)
 
-* **O que foi pedido à IA:** Solução para dois erros encontrados no terminal do Windows durante a preparação: o comando `psql` não era reconhecido e, em seguida, o comando `python` não foi encontrado.
-* **O que a IA propôs:**
-  1. Adicionar a pasta `bin` da instalação do PostgreSQL na variável de ambiente `PATH` do Windows e reiniciar o terminal.
-  2. Instalar o Python 3 marcando a opção `Add python.exe to PATH` e reiniciar o terminal.
-* **Justificativa da decisão:** Aceita porque configurar o `PATH` permite rodar tanto o `psql` quanto o `python` diretamente de qualquer pasta no CMD, destravando todas as etapas seguintes.
-* **Como foi validado:** Após configurar o `PATH` do PostgreSQL, criei o banco `verdejar` e apliquei o `schema.sql`. Após instalar o Python 3, subi a API local e validei a rota `/saude`:
-  ```bash
-  python insumos/api_verdejar.py --dados insumos/dados
-  curl "http://127.0.0.1:8000/saude"
-  ```
-  Resposta obtida no terminal: `{"status": "ok"}`.
+- **Trecho / tarefa pedida:** Pedi uma proposta de funções para o módulo `etl/extracao.py` capazes de consumir as rotas paginadas `/clientes` e `/pedidos`, validar status HTTP, tratar erros de conexão e página inexistente (`404`), ler `insumos/dados/produtos.csv` com o módulo padrão `csv` e salvar cópias brutas na pasta `brutos/`.
+- **Justificativa da decisão:** Aceitei a estrutura modular dividida em funções pequenas (`extrair_rota_paginada`, `ler_produtos_csv`, `salvar_bruto_json` e `executar_extracao`) usando apenas a biblioteca padrão do Python (`urllib`, `json`, `csv`, `os`), pois cumpre todos os requisitos da Parte 1 sem exigir instalação de pacotes extras nesta etapa e facilita explicar o fluxo na defesa oral.
+- **Como validei:**
+  - **Teste 1 (API desligada):** executei `python etl/extracao.py` com o servidor parado e confirmei a mensagem amigável de erro de conexão (`[WinError 10061]`).
+  - **Teste 2 (API ligada):** executei `python etl/extracao.py` com a API ativa e confirmei a gravação dos arquivos em `brutos/` e os contadores (`clientes paginas=20 registros=1000`, `pedidos paginas=102 registros_brutos=5100`, `produtos registros=12`).
+  - **Teste 3 (página inexistente):** chamei `extrair_rota_paginada` na página `9999` e confirmei o tratamento limpo do erro `HTTP 404`.
 
-### 3. Implementação da extração paginada da API e leitura do CSV (`etl/extracao.py`) (Fase 1)
+### 3. Estrutura do `CONTRATO_DE_DADOS.md` e funções puras de limpeza (`etl/transformacao.py`) (Parte 2)
 
-* **O que foi pedido à IA:** Uma proposta modular para a Parte 1 (`etl/extracao.py`) capaz de percorrer todas as páginas das rotas `/clientes` e `/pedidos`, verificar o código de status HTTP, tratar erros de conexão e página inexistente (`404`) com mensagens claras, ler `insumos/dados/produtos.csv` com o módulo padrão `csv` e gravar os dados brutos na pasta `brutos/`.
-* **O que a IA propôs:** Dividir a extração em quatro funções pequenas (`extrair_rota_paginada`, `ler_produtos_csv`, `salvar_bruto_json` e `executar_extracao`) usando apenas a biblioteca padrão do Python (`urllib`, `json`, `csv`, `os`) e imprimindo os contadores em texto simples.
-* **Justificativa da decisão:** Aceita por atender a todos os critérios da dimensão D1 (extração completa, tratamento de erros, preservação dos dados brutos e saída acessível sem cores), sem exigir dependências externas nesta fase e com código fácil de acompanhar linha a linha.
-* **Como foi validado:** Executei os três cenários diretamente no CMD e obtive as seguintes saídas reais:
-  1. **Erro de conexão (API desligada):**
-     ```text
-     erro: falha de conexao com http://127.0.0.1:8000 ([WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente). Verifique se a API esta rodando.
-     ```
-  2. **Extração completa (API ligada):**
-     ```text
-     extracao: clientes paginas=20 registros=1000
-     extracao: pedidos paginas=102 registros_brutos=5100
-     extracao: produtos registros=12
-     ```
-  3. **Página inexistente (HTTP 404 na página 9999):**
-     ```text
-     erro: pagina 9999 ou rota /clientes inexistente (HTTP 404).
-     ```
+- **Trecho / tarefa pedida:** Pedi a estrutura do contrato de dados alinhada ao `insumos/schema.sql` e funções pequenas e puras para tratar cada uma das seis armadilhas (`A1` a `A6`), incluindo a geração sequencial da coluna `linha` para a tabela `itens_pedido`.
+- **Justificativa da decisão:** Aceitei a divisão em funções puras e isoladas (`tratar_email`, `padronizar_estado`, `converter_data`, `converter_valor`, `remover_pedidos_repetidos` e `calcular_e_verificar_itens`) e a numeração automática da coluna `linha` via `enumerate(..., start=1)`, pois permite testar cada armadilha separadamente no `pytest` e respeita a chave primária composta `(pedido_id, linha)` do PostgreSQL.
+- **Como validei:**
+  - Executei `python etl/transformacao.py` sobre os dados brutos extraídos e conferi todos os contadores gerados (`pedidos_unicos=5000`, `repetidos_descartados=100`, `emails_nulos=81`, `estados_padronizados=151`, `datas_convertidas=1037`, `valores_convertidos=1255`, `divergentes=238`).
 
 ---
 
 ## Sugestões rejeitadas
 
-> **[Em andamento — a preencher nas próximas etapas]**
-> *Regra obrigatória da Parte 5: registrar no mínimo **2 sugestões rejeitadas**, informando em cada uma o trecho pedido, o que a IA propôs, por que foi inadequada (justificativa) e o que foi feito no lugar com validação.*
+### 1. Adoção de prefixos em inglês (`chore:`, `feat:`) nas mensagens de commit (Parte 1)
+
+- **Trecho / sugestão proposta pela IA:** A IA sugeriu padronizar as mensagens de commit do Git usando prefixos em inglês do padrão *Conventional Commits* (como `chore:` e `feat:`).
+- **Justificativa da rejeição:** O documento do desafio exige apenas que os commits tenham mensagens descritivas explicando o que foi feito, sem obrigar o uso de prefixos em inglês. Usar frases diretas em português deixa o histórico do repositório mais claro, natural e fácil de revisar.
+- **O que foi feito no lugar e como validei:** Escrevi as mensagens de commit diretamente em português descritivo e confirmei no histórico do Git (`git log`) e no GitHub que o registro ficou claro e objetivo.
+
+### 2. Uso de `float` e `round()` para valores monetários na transformação (Parte 2)
+
+- **Trecho / sugestão proposta pela IA:** Na primeira versão proposta para `etl/transformacao.py`, a IA sugeriu converter os valores financeiros (`valor_total`, `preco_unitario` e `preco_base`) usando `round(float(texto), 2)`.
+- **Justificativa da rejeição:** Números do tipo `float` usam representação binária e podem causar imprecisões de arredondamento em operações financeiras, além de o `round()` padrão do Python usar arredondamento bancário (para o par mais próximo). Como o esquema do PostgreSQL (`insumos/schema.sql`) define essas colunas como `NUMERIC(10,2)` e `NUMERIC(12,2)`, o tipo adequado em Python é o `Decimal`.
+- **O que foi feito no lugar e como validei:** Substituí `float` e `round()` pelo módulo padrão `decimal` (`Decimal` com `.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)`), convertendo sempre a partir de `str(valor)` para evitar ruído binário, e validei os cálculos executando `python etl/transformacao.py` antes e depois da alteração.
 
 ---
 
 ## Falhas e retrabalho
 
-> **[Em andamento — a preencher nas próximas etapas]**
-> *Regra obrigatória da Parte 5: registrar ao menos **1 falha encontrada em código proposto pela IA**, descrevendo o erro observado na execução ou nos testes e o retrabalho feito para corrigi-lo.*
+> *Meta obrigatória até a Parte 5: registrar no mínimo **1 falha encontrada em código proposto pela IA** e o retrabalho feito para corrigi-la.*
+
+### 1. [A preencher ao identificar e corrigir uma falha em código proposto pela IA]
+
+- **O que a IA propôs:** *(trecho ou lógica original)*
+- **Qual foi a falha encontrada:** *(erro de execução, teste que falhou ou comportamento incorreto)*
+- **Retrabalho feito e validação:** *(como você corrigiu e provou que passou a funcionar)*
